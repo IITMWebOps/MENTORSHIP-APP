@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const passport = require("passport");
 
 const clientUrl = () =>
-  (process.env.CLIENT_URL || "http://localhost:5174").replace(/\/$/, "");
+  (process.env.CLIENT_URL || "http://localhost:5174").trim().replace(/\/$/, "");
 
 exports.googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],

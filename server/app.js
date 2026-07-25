@@ -78,8 +78,8 @@ app.get("/", (req, res) => {
 
 // Safe deploy diagnostics (no secrets)
 app.get("/api/health", (req, res) => {
-  const client = (process.env.CLIENT_URL || "").replace(/\/$/, "");
-  const callback = process.env.GOOGLE_CALLBACK_URL || "";
+  const client = (process.env.CLIENT_URL || "").trim().replace(/\/$/, "");
+  const callback = (process.env.GOOGLE_CALLBACK_URL || "").trim();
   res.json({
     success: true,
     clientUrl: client || null,
