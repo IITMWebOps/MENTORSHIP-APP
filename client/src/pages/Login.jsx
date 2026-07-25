@@ -1,6 +1,17 @@
+import { useSearchParams } from "react-router-dom";
 import { authAPI } from "../lib/api";
 
+const ERRORS = {
+  unauthorized:
+    "This Google account isn’t registered in SAATHI, or isn’t an IITM smail ID.",
+  auth: "Sign-in didn’t finish. Please try again.",
+  session: "Signed in, but we couldn’t load your profile. Check API URL / CORS.",
+};
+
 export default function Login() {
+  const [params] = useSearchParams();
+  const error = ERRORS[params.get("error")] || "";
+
   return (
     <div className="landing">
       <div className="landing__glow landing__glow--a" aria-hidden="true" />
@@ -24,6 +35,8 @@ export default function Login() {
           <p className="landing__support">
             You’re not meant to figure it all out alone.
           </p>
+
+          {error ? <p className="landing__error">{error}</p> : null}
 
           <button
             type="button"

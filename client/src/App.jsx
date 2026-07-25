@@ -55,12 +55,12 @@ function readStoredUser() {
 const GoogleAuthHandler = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState("Signing you in...");
 
   useEffect(() => {
     let cancelled = false;
 
-    const finishWithToken = async (token) => {
+    const finishLogin = async (token, userFromUrl) => {
       localStorage.setItem("token", token);
 
       try {
@@ -68,27 +68,42 @@ const GoogleAuthHandler = () => {
         if (cancelled) return;
 
         const user = res.data?.user;
-        if (!user?.role) {
-          throw new Error("Invalid user");
-        }
+        if (!user?.role) throw new Error("Invalid user");
 
         localStorage.setItem("user", JSON.stringify(user));
         navigate(roleHome(user.role), { replace: true });
+        return;
       } catch {
+        // Fallback if /me fails (e.g. brief network glitch) but redirect had user
+        if (userFromUrl?.role) {
+          localStorage.setItem("user", JSON.stringify(userFromUrl));
+          navigate(roleHome(userFromUrl.role), { replace: true });
+          return;
+        }
+
         if (cancelled) return;
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        setError("Sign-in failed. Please try again.");
-        navigate("/", { replace: true });
+        navigate("/?error=session", { replace: true });
       }
     };
 
     const tokenFromUrl = searchParams.get("token");
+    const userParam = searchParams.get("user");
+
+    let userFromUrl = null;
+    if (userParam) {
+      try {
+        userFromUrl = JSON.parse(userParam);
+      } catch {
+        userFromUrl = null;
+      }
+    }
 
     if (tokenFromUrl) {
-      // Drop token/user from the address bar + history entry ASAP
-      navigate("/dashboard", { replace: true });
-      finishWithToken(tokenFromUrl);
+      // Strip secrets from the address bar without remounting this effect
+      window.history.replaceState({}, "", "/dashboard");
+      finishLogin(tokenFromUrl, userFromUrl);
       return () => {
         cancelled = true;
       };
@@ -96,21 +111,24 @@ const GoogleAuthHandler = () => {
 
     const cachedToken = localStorage.getItem("token");
     if (cachedToken) {
-      finishWithToken(cachedToken);
+      finishLogin(cachedToken, readStoredUser());
       return () => {
         cancelled = true;
       };
     }
 
-    navigate("/", { replace: true });
+    setStatus("Sign-in incomplete. Redirecting...");
+    navigate("/?error=auth", { replace: true });
     return () => {
       cancelled = true;
     };
-  }, [searchParams, navigate]);
+    // Intentionally once on mount — avoid canceling /auth/me when URL is cleaned
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex justify-center items-center min-h-screen">
-      {error || "Signing you in..."}
+      {status}
     </div>
   );
 };

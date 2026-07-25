@@ -8,7 +8,7 @@ exports.googleLogin = passport.authenticate("google", {
 exports.googleCallback = [
   passport.authenticate("google", {
     session: false,
-    failureRedirect: `${process.env.CLIENT_URL}/`,
+    failureRedirect: `${process.env.CLIENT_URL}/?error=unauthorized`,
   }),
 
   (req, res) => {
