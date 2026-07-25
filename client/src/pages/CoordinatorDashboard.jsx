@@ -44,7 +44,7 @@ export default function CoordinatorDashboard() {
         subtitle={subtitle}
       />
 
-      <div className="grid grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
 
         <StatsCard
           title="Mentors"
@@ -304,9 +304,9 @@ export default function CoordinatorDashboard() {
                 className="border rounded-lg p-5"
               >
 
-                <div className="flex justify-between items-start">
+                <div className="flex flex-wrap justify-between items-start gap-2">
 
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-semibold text-lg">
                       {feedback.mentor?.name}
                     </h3>
@@ -316,7 +316,7 @@ export default function CoordinatorDashboard() {
                     </p>
                   </div>
 
-                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">
+                  <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full shrink-0">
                     ⭐ {feedback.rating}/5
                   </span>
 

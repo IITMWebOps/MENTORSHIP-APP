@@ -29,10 +29,12 @@ button {
     filter 0.2s ease;
 }
 
-button:hover:not(:disabled) {
-  transform: scale(1.08);
-  filter: brightness(1.05);
-  box-shadow: 0 8px 20px rgba(22, 58, 74, 0.16);
+@media (hover: hover) and (pointer: fine) {
+  button:hover:not(:disabled) {
+    transform: scale(1.08);
+    filter: brightness(1.05);
+    box-shadow: 0 8px 20px rgba(22, 58, 74, 0.16);
+  }
 }
 
 button:active:not(:disabled) {
@@ -903,6 +905,21 @@ button:active:not(:disabled) {
   .admin-grid--activity {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .dash-box {
+    padding: 1rem;
+  }
+
+  .dash-navbar {
+    height: auto;
+    min-height: 3.75rem;
+    padding: 0.75rem 1rem;
+    gap: 0.65rem;
+  }
+
+  .dash-navbar__title {
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 560px) {
@@ -915,7 +932,31 @@ button:active:not(:disabled) {
     display: none;
   }
 
+  .dash-navbar__user {
+    max-width: 42vw;
+  }
+
+  .dash-navbar__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .admin-upload__btn {
     width: 100%;
+  }
+
+  .dash-shell__content {
+    padding-top: 0.5rem;
+  }
+
+  /* Wide tables scroll horizontally instead of blowing the layout */
+  .dash-box .overflow-x-auto {
+    margin-inline: -0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .dash-box table {
+    font-size: 0.875rem;
   }
 }
