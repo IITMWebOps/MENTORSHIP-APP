@@ -131,7 +131,7 @@ export default function MentorDashboard() {
                 Assigned Mentees
             ========================================================== */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
 
         <div className="flex justify-between items-center mb-5">
 
@@ -353,7 +353,7 @@ export default function MentorDashboard() {
       )}
       {/* Create Interaction */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
 
         <div className="flex justify-between items-center mb-5">
 
@@ -551,7 +551,7 @@ export default function MentorDashboard() {
           Interaction History
       ========================================================== */}
 
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="dash-box">
 
         <h2 className="text-2xl font-semibold mb-5">
           Interaction History

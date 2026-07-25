@@ -72,7 +72,7 @@ export default function CoordinatorDashboard() {
       </div>
             {/* Mentor List */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
 
         <h2 className="text-2xl font-semibold mb-5">
           Mentor List
@@ -172,7 +172,7 @@ export default function CoordinatorDashboard() {
       </div>
             {/* Pending Verifications */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
         <h2 className="text-2xl font-semibold mb-5">
           Pending Verifications
         </h2>
@@ -226,7 +226,7 @@ export default function CoordinatorDashboard() {
 
       {/* Pending Reviews */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
         <h2 className="text-2xl font-semibold mb-5">
           Pending Reviews
         </h2>
@@ -282,7 +282,7 @@ export default function CoordinatorDashboard() {
 
       {/* Mentor Feedback */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
         <h2 className="text-2xl font-semibold mb-5">
           Mentor Feedback
         </h2>

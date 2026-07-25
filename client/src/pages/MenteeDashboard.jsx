@@ -106,7 +106,7 @@ export default function MenteeDashboard() {
       </div>
             {/* My Mentor */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
         <h2 className="text-2xl font-semibold mb-5">My Mentor</h2>
 
         {dashboard.mentor ? (
@@ -147,7 +147,7 @@ export default function MenteeDashboard() {
 
       {/* Pending Interactions */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
 
         <h2 className="text-2xl font-semibold mb-5">
           Pending Interactions
@@ -241,7 +241,7 @@ export default function MenteeDashboard() {
       </div>
             {/* Approved Interactions */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
         <h2 className="text-2xl font-semibold mb-5">
           Approved Interactions
         </h2>
@@ -304,7 +304,7 @@ export default function MenteeDashboard() {
 
       {/* Rejected Interactions */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
 
         <h2 className="text-2xl font-semibold mb-5">
           Rejected Interactions
@@ -369,7 +369,7 @@ export default function MenteeDashboard() {
 
       {/* Feedback History */}
 
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="dash-box mb-8">
 
         <h2 className="text-2xl font-semibold mb-5">
           Feedback History
