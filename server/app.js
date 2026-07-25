@@ -17,6 +17,8 @@ const connectDB = require("./config/db");
 // Routes
 const authRoutes = require("./routes/authRoutes");
 
+
+
 dotenv.config();
 
 connectDB();
