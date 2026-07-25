@@ -1,32 +1,64 @@
-const mongoose = require('mongoose')
-// Inside server/models/Session.js
-const sessionSchema = new mongoose.Schema({
-  // ✅ CHANGE THIS LINE TO REFERENCE THE NEW MENTORSHIP MODEL
-  mentorship: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Mentorship', 
-    required: true 
-  },
-  title: String,
-  scheduledDate: Date,
-  duration: Number,
-  interactionType: String,
-  discussionTopics: [String],
-  status: { 
-    type: String, 
-    enum: ['draft', 'submitted', 'mentee_verified', 'approved', 'rejected'], 
-    default: 'draft' 
-  },
-  mentorReport: {
-    topicsCovered: String,
-    progressNotes: String,
-    nextSteps: String
-  },
-  menteeValidation: {
-    status: { type: String, enum: ['approved', 'rejected'] },
-    comments: String,
-    validatedAt: Date
-  }
-}, { timestamps: true });
+const mongoose = require("mongoose");
 
-module.exports = mongoose.model('Session', sessionSchema);
+const participantSchema = new mongoose.Schema(
+  {
+    mentee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    verificationStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+
+    verificationRemarks: {
+      type: String,
+      default: "",
+    },
+
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const sessionSchema = new mongoose.Schema(
+  {
+    mentor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    interactionDate: {
+      type: Date,
+      required: true,
+    },
+
+    interactionType: {
+      type: String,
+      enum: ["online", "In Person","Phone Call"],
+      required: true,
+    },
+
+    meetingSummary: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    participants: [participantSchema],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Session", sessionSchema);

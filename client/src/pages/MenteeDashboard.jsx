@@ -1,319 +1,536 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import DashboardHeader from "../../components/DashboardHeader"
-import { 
-  CheckCircle2, XCircle, Clock, MessageSquare, Star, 
-  Send, AlertTriangle, Calendar, User, ShieldCheck
-} from 'lucide-react';
+import { useEffect, useState } from "react";
+import DashboardHeader from "../../components/DashboardHeader";
+import StatsCard from "../../components/StatsCard";
+
+import Loader from "../../components/Loader";
+import API, { menteeAPI, feedbackAPI } from "../lib/api";
 
 export default function MenteeDashboard() {
-  const [sessions, setSessions] = useState([]);
-  const [mentorName, setMentorName] = useState('');
+  const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Verification Modal State
-  const [verifyModal, setVerifyModal] = useState({ open: false, session: null });
-  const [verifyForm, setVerifyForm] = useState({ status: 'approved', comments: '' });
-  
-  // Feedback Form State
-  const [feedbackForm, setFeedbackForm] = useState({ rating: 0, comment: '' });
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user'));
-  const token = localStorage.getItem('token');
-  const headers = { Authorization: `Bearer ${token}` };
+  const [feedbackModal, setFeedbackModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
 
-  useEffect(() => { fetchData(); }, []);
+  const [feedbackData, setFeedbackData] = useState({
+    rating: 5,
+    feedback: "",
+  });
 
-  const fetchData = async () => {
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
     try {
-      // Fetch sessions assigned to this mentee
-      const { data } = await axios.get('http://localhost:8000/api/sessions/mentee/' + user._id, { headers });
-      
-      setSessions(data.sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate)));
-      
-      // Extract mentor name from first session or fetch separately if needed
-      if (data.length > 0 && data[0].mentorship?.mentor) {
-        setMentorName(data[0].mentorship.mentor.name || 'Your Mentor');
-      }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
-
-  const handleVerifySubmit = async () => {
-    try {
-      await axios.put(
-        `http://localhost:8000/api/sessions/${verifyModal.session._id}/verify`,
-        verifyForm,
-        { headers }
-      );
-      alert(`Session ${verifyForm.status === 'approved' ? 'approved' : 'rejected'} successfully!`);
-      setVerifyModal({ open: false, session: null });
-      setVerifyForm({ status: 'approved', comments: '' });
-      fetchData();
-    } catch (err) { alert('Verification failed'); }
-  };
-
-  const handleFeedbackSubmit = async (e) => {
-    e.preventDefault();
-    if (feedbackForm.rating === 0) {
-      alert('Please select a rating before submitting.');
-      return;
+      const res = await menteeAPI.dashboard();
+      setDashboard(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    
-    setSubmittingFeedback(true);
+  };
+
+  const approveInteraction = async (id) => {
     try {
-      await axios.post('http://localhost:8000/api/feedback', {
-        rating: feedbackForm.rating,
-        comment: feedbackForm.comment,
-        department: user.department
-        // Note: mentee ID is intentionally NOT sent to preserve anonymity
-      }, { headers });
-      
-      setFeedbackSuccess(true);
-      setFeedbackForm({ rating: 0, comment: '' });
-      setTimeout(() => setFeedbackSuccess(false), 3000);
-    } catch (err) { alert('Feedback submission failed'); } finally { setSubmittingFeedback(false); }
+      await API.put(`/sessions/${id}/approve`);
+      loadDashboard();
+    } catch (err) {
+      alert(err.response?.data?.message || "Unable to approve interaction.");
+    }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      submitted: 'bg-amber-100 text-amber-700 border-amber-200',
-      mentee_verified: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      approved: 'bg-blue-100 text-blue-700 border-blue-200',
-      rejected: 'bg-red-100 text-red-700 border-red-200',
-      draft: 'bg-gray-100 text-gray-600 border-gray-200'
-    };
-    const labels = {
-      submitted: '⏳ Awaiting Your Verification',
-      mentee_verified: '✅ Verified by You',
-      approved: ' Coordinator Approved',
-      rejected: ' Rejected',
-      draft: '📝 Draft'
-    };
-    return (
-      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${styles[status] || styles.draft}`}>
-        {labels[status] || status}
-      </span>
-    );
+  const rejectInteraction = async (id) => {
+    try {
+      await API.put(`/session/${id}/reject`);
+      loadDashboard();
+    } catch (err) {
+      alert(err.response?.data?.message || "Unable to reject interaction.");
+    }
   };
 
-  if (loading) return <div className="p-10 text-center">Loading your mentorship data...</div>;
+  const submitFeedback = async () => {
+    try {
+      await feedbackAPI.submit({
+        sessionId: selectedSession,
+        rating: feedbackData.rating,
+        feedback: feedbackData.feedback,
+      });
 
-  const pendingCount = sessions.filter(s => s.status === 'submitted').length;
+      setFeedbackModal(false);
+      setFeedbackData({
+        rating: 5,
+        feedback: "",
+      });
+
+      loadDashboard();
+
+    } catch (err) {
+      alert(err.response?.data?.message || "Unable to submit feedback.");
+    }
+  };
+
+  if (loading) return <Loader />;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 bg-gradient-to-r from-green-400 to-blue-300 min-h-screen">
-      
-      <DashboardHeader 
-      title={`Welcome,${user?.name}`} />
-      <div className="flex justify-between items-start">
-        <div>
-          {/* <h1 className="text-3xl font-bold text-indigo-900">Welcome, {user?.name}!</h1> */}
-          <p className="text-slate-700 mt-1">Mentor: <span className="font-medium text-indigo-700">{mentorName}</span></p>
-        </div>
-        {pendingCount > 0 && (
-          <div className="bg-amber-50 border border-amber-200 px-4 py-2 rounded-lg flex items-center gap-2">
-            <AlertTriangle className="text-amber-600" size={18} />
-            <span className="text-sm font-medium text-amber-800">{pendingCount} Session(s) Pending Verification</span>
+    <>
+      <DashboardHeader
+        title="Mentee Dashboard"
+        subtitle="Manage your mentorship interactions"
+      />
+
+      <div className="grid grid-cols-4 gap-6 mb-8">
+        <StatsCard
+          title="Pending"
+          value={dashboard.pendingInteractions.length}
+          color="bg-yellow-500"
+        />
+
+        <StatsCard
+          title="Approved"
+          value={dashboard.approvedInteractions.length}
+          color="bg-green-600"
+        />
+
+        <StatsCard
+          title="Rejected"
+          value={dashboard.rejectedInteractions.length}
+          color="bg-red-600"
+        />
+
+        <StatsCard
+          title="Feedback"
+          value={dashboard.feedbackHistory.length}
+        />
+      </div>
+            {/* My Mentor */}
+
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+        <h2 className="text-2xl font-semibold mb-5">My Mentor</h2>
+
+        {dashboard.mentor ? (
+          <div className="grid grid-cols-2 gap-4">
+
+            <div>
+              <p className="text-gray-500 text-sm">Name</p>
+              <p className="font-semibold">{dashboard.mentor.name}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500 text-sm">Roll No</p>
+              <p className="font-semibold">{dashboard.mentor.rollNo}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500 text-sm">Email</p>
+              <p>{dashboard.mentor.email}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500 text-sm">Mobile</p>
+              <p>{dashboard.mentor.mobile || "-"}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500 text-sm">Department</p>
+              <p>{dashboard.mentor.department}</p>
+            </div>
+
           </div>
+        ) : (
+          <p className="text-gray-500">
+            Mentor has not been assigned yet.
+          </p>
         )}
       </div>
 
-      {/* SESSION VERIFICATION LIST */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-            <Calendar className="text-indigo-600" /> Session History & Verification
-          </h2>
+      {/* Pending Interactions */}
+
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+
+        <h2 className="text-2xl font-semibold mb-5">
+          Pending Interactions
+        </h2>
+
+        <div className="overflow-x-auto">
+
+          <table className="min-w-full border">
+
+            <thead className="bg-slate-100">
+
+              <tr>
+
+                <th className="p-3 text-left">Date</th>
+
+                <th className="p-3 text-left">Type</th>
+
+                <th className="p-3 text-left">Summary</th>
+
+                <th className="p-3 text-center">Action</th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {dashboard.pendingInteractions.length === 0 ? (
+
+                <tr>
+                  <td
+                    colSpan="4"
+                    className="text-center p-6 text-gray-500"
+                  >
+                    No pending interactions.
+                  </td>
+                </tr>
+
+              ) : (
+
+                dashboard.pendingInteractions.map((item) => (
+
+                  <tr key={item._id} className="border-t">
+
+                    <td className="p-3">
+                      {new Date(item.interactionDate).toLocaleDateString()}
+                    </td>
+
+                    <td className="p-3">
+                      {item.interactionType}
+                    </td>
+
+                    <td className="p-3">
+                      {item.meetingSummary}
+                    </td>
+
+                    <td className="p-3">
+
+                      <div className="flex gap-2 justify-center">
+
+                        <button
+                          onClick={() => approveInteraction(item._id)}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          onClick={() => rejectInteraction(item._id)}
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                        >
+                          Reject
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ))
+
+              )}
+
+            </tbody>
+
+          </table>
+
         </div>
-        
-        <div className="divide-y divide-gray-100">
-          {sessions.map(session => (
-            <div key={session._id} className="p-6 hover:bg-slate-50 transition-colors">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-semibold text-slate-800">{session.title}</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {new Date(session.scheduledDate).toLocaleDateString()} • {session.duration} mins • {session.interactionType}
-                  </p>
-                </div>
-                {getStatusBadge(session.status)}
-              </div>
 
-              {/* Mentor Report Preview */}
-              {session.mentorReport && (
-                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Mentor's Notes</p>
-                  <p className="text-sm text-slate-700"><strong>Topics:</strong> {session.mentorReport.topicsCovered}</p>
-                  {session.mentorReport.nextSteps && (
-                    <p className="text-sm text-slate-700 mt-2"><strong>Next Steps:</strong> {session.mentorReport.nextSteps}</p>
-                  )}
-                </div>
-              )}
+      </div>
+            {/* Approved Interactions */}
 
-              {/* Action Buttons */}
-              {session.status === 'submitted' && (
-                <button 
-                  onClick={() => setVerifyModal({ open: true, session })}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  Verify This Session
-                </button>
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+        <h2 className="text-2xl font-semibold mb-5">
+          Approved Interactions
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full border">
+            <thead className="bg-slate-100">
+              <tr>
+                <th className="p-3 text-left">Date</th>
+                <th className="p-3 text-left">Type</th>
+                <th className="p-3 text-left">Summary</th>
+                <th className="p-3 text-center">Feedback</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {dashboard.approvedInteractions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="4"
+                    className="text-center p-6 text-gray-500"
+                  >
+                    No approved interactions.
+                  </td>
+                </tr>
+              ) : (
+                dashboard.approvedInteractions.map((item) => (
+                  <tr key={item._id} className="border-t">
+                    <td className="p-3">
+                      {new Date(item.interactionDate).toLocaleDateString()}
+                    </td>
+
+                    <td className="p-3">
+                      {item.interactionType}
+                    </td>
+
+                    <td className="p-3">
+                      {item.meetingSummary}
+                    </td>
+
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => {
+                          setSelectedSession(item._id);
+                          setFeedbackModal(true);
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+                      >
+                        Submit Feedback
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
-              
-              {/* Show rejection reason if applicable */}
-              {session.status === 'rejected' && session.menteeValidation?.comments && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                  <strong className='text-black text-sm'>Your Rejection Reason:</strong> {session.menteeValidation.comments}
-                </div>
-              )}
-            </div>
-          ))}
-          
-          {sessions.length === 0 && (
-            <div className="p-12 text-center text-slate-400">
-              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No sessions reported yet. Your mentor will log meetings here.</p>
-            </div>
-          )}
+            </tbody>
+
+          </table>
         </div>
       </div>
 
-      {/* ANONYMOUS FEEDBACK SECTION */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-purple-50 rounded-full">
-            <ShieldCheck className="text-purple-600" size={24} />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-slate-800">Anonymous Feedback</h2>
-            <p className="text-sm text-slate-500">Your identity is hidden. Share honest feedback about your mentor's guidance.</p>
-          </div>
+      {/* Rejected Interactions */}
+
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+
+        <h2 className="text-2xl font-semibold mb-5">
+          Rejected Interactions
+        </h2>
+
+        <div className="overflow-x-auto">
+
+          <table className="min-w-full border">
+
+            <thead className="bg-slate-100">
+              <tr>
+                <th className="p-3">Date</th>
+                <th className="p-3">Type</th>
+                <th className="p-3">Summary</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              {dashboard.rejectedInteractions.length === 0 ? (
+
+                <tr>
+                  <td
+                    colSpan="3"
+                    className="text-center p-6 text-gray-500"
+                  >
+                    No rejected interactions.
+                  </td>
+                </tr>
+
+              ) : (
+
+                dashboard.rejectedInteractions.map((item) => (
+
+                  <tr key={item._id} className="border-t">
+
+                    <td className="p-3">
+                      {new Date(item.interactionDate).toLocaleDateString()}
+                    </td>
+
+                    <td className="p-3">
+                      {item.interactionType}
+                    </td>
+
+                    <td className="p-3">
+                      {item.meetingSummary}
+                    </td>
+
+                  </tr>
+
+                ))
+
+              )}
+
+            </tbody>
+
+          </table>
+
         </div>
 
-        {feedbackSuccess ? (
-          <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-            <p className="text-lg font-semibold text-emerald-800">Thank you for your feedback!</p>
-            <p className="text-sm text-emerald-600 mt-1">Your response has been submitted anonymously.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleFeedbackSubmit} className="space-y-5">
-            {/* Star Rating */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Overall Rating</label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setFeedbackForm({...feedbackForm, rating: star})}
-                    className={`p-2 rounded-lg transition-all ${
-                      feedbackForm.rating >= star 
-                        ? 'text-yellow-400 bg-yellow-50 scale-110' 
-                        : 'text-gray-300 hover:text-yellow-300'
-                    }`}
-                  >
-                    <Star size={28} fill={feedbackForm.rating >= star ? 'currentColor' : 'none'} />
-                  </button>
-                ))}
+      </div>
+
+      {/* Feedback History */}
+
+      <div className="bg-white rounded-xl shadow p-6 mb-8">
+
+        <h2 className="text-2xl font-semibold mb-5">
+          Feedback History
+        </h2>
+
+        <div className="space-y-4">
+
+          {dashboard.feedbackHistory.length === 0 ? (
+
+            <p className="text-gray-500">
+              No feedback available.
+            </p>
+
+          ) : (
+
+            dashboard.feedbackHistory.map((item) => (
+
+              <div
+                key={item.sessionId}
+                className="border rounded-lg p-4"
+              >
+
+                <div className="flex justify-between">
+
+                  <div>
+
+                    <h3 className="font-semibold">
+                      {item.interactionType}
+                    </h3>
+
+                    <p className="text-sm text-gray-500">
+                      {new Date(
+                        item.interactionDate
+                      ).toLocaleDateString()}
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <p className="mt-3">
+                  <strong>Meeting Summary:</strong>{" "}
+                  {item.meetingSummary}
+                </p>
+
+                <hr className="my-4" />
+
+                <div>
+
+                  <h4 className="font-semibold mb-2">
+                    Mentor Feedback
+                  </h4>
+
+                  {item.mentorFeedback ? (
+                    <>
+                      <p>
+                        Rating : {item.mentorFeedback.rating}/5
+                      </p>
+
+                      <p className="mt-1">
+                        {item.mentorFeedback.feedback}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-gray-500">
+                      Mentor has not submitted feedback yet.
+                    </p>
+                  )}
+
+                </div>
+
               </div>
+
+            ))
+
+          )}
+
+        </div>
+
+      </div>
+            {/* Feedback Modal */}
+
+      {feedbackModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+
+            <h2 className="text-2xl font-semibold mb-5">
+              Submit Feedback
+            </h2>
+
+            <div className="mb-4">
+              <label className="block mb-2 font-medium">
+                Rating
+              </label>
+
+              <select
+                value={feedbackData.rating}
+                onChange={(e) =>
+                  setFeedbackData({
+                    ...feedbackData,
+                    rating: Number(e.target.value),
+                  })
+                }
+                className="border rounded-lg p-3 w-full"
+              >
+                <option value={5}>5 - Excellent</option>
+                <option value={4}>4 - Good</option>
+                <option value={3}>3 - Average</option>
+                <option value={2}>2 - Poor</option>
+                <option value={1}>1 - Very Poor</option>
+              </select>
             </div>
 
-            {/* Comment */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Comments</label>
-              <textarea 
-                rows={3}
-                value={feedbackForm.comment}
-                onChange={e => setFeedbackForm({...feedbackForm, comment: e.target.value})}
-                className="w-full p-3 border text-black text-sm border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 outline-none"
-                placeholder="What went well? What could be improved?"
+            <div className="mb-5">
+              <label className="block mb-2 font-medium">
+                Feedback
+              </label>
+
+              <textarea
+                rows={5}
+                value={feedbackData.feedback}
+                onChange={(e) =>
+                  setFeedbackData({
+                    ...feedbackData,
+                    feedback: e.target.value,
+                  })
+                }
+                placeholder="Write your feedback..."
+                className="border rounded-lg p-3 w-full"
               />
             </div>
 
-            <button 
-              type="submit" 
-              disabled={submittingFeedback || feedbackForm.rating === 0}
-              className="bg-purple-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              {submittingFeedback ? 'Submitting...' : <><Send size={16} /> Submit Anonymously</>}
-            </button>
-          </form>
-        )}
-      </div>
+            <div className="flex justify-end gap-3">
 
-      {/* VERIFICATION MODAL */}
-      {verifyModal.open && verifyModal.session && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-slate-800">Verify Session</h3>
-              <p className="text-sm text-slate-500 mt-1">{verifyModal.session.title}</p>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setVerifyForm({...verifyForm, status: 'approved'})}
-                  className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                    verifyForm.status === 'approved' 
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                      : 'border-gray-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <CheckCircle2 className="w-8 h-8 mx-auto mb-2" />
-                  <p className="font-semibold">Yes, it happened</p>
-                  <p className="text-xs mt-1 opacity-80">Meeting occurred as reported</p>
-                </button>
-                
-                <button 
-                  onClick={() => setVerifyForm({...verifyForm, status: 'rejected'})}
-                  className={`flex-1 p-4 rounded-xl border-2 transition-all ${
-                    verifyForm.status === 'rejected' 
-                      ? 'border-red-500 bg-red-50 text-red-700' 
-                      : 'border-gray-200 hover:border-red-300'
-                  }`}
-                >
-                  <XCircle className="w-8 h-8 mx-auto mb-2" />
-                  <p className="font-semibold">No, issue found</p>
-                  <p className="text-xs mt-1 opacity-80">Meeting didn't happen or was inaccurate</p>
-                </button>
-              </div>
-
-              {verifyForm.status === 'rejected' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Rejection *</label>
-                  <textarea 
-                    required
-                    rows={3}
-                    value={verifyForm.comments}
-                    onChange={e => setVerifyForm({...verifyForm, comments: e.target.value})}
-                    className="w-full p-3 border border-red-300  text-black text-sm rounded-lg resize-none focus:ring-2 focus:ring-red-500 outline-none"
-                    placeholder="Please explain why this report is inaccurate..."
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-100 flex gap-3">
-              <button 
-                onClick={handleVerifySubmit}
-                className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700"
-              >
-                Confirm Verification
-              </button>
-              <button 
-                onClick={() => setVerifyModal({ open: false, session: null })}
-                className="px-4 py-2.5 border border-gray-300 rounded-lg text-slate-600 hover:bg-gray-50"
+              <button
+                onClick={() => {
+                  setFeedbackModal(false);
+                  setSelectedSession(null);
+                  setFeedbackData({
+                    rating: 5,
+                    feedback: "",
+                  });
+                }}
+                className="px-5 py-2 border rounded-lg hover:bg-gray-100"
               >
                 Cancel
               </button>
+
+              <button
+                onClick={submitFeedback}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg"
+              >
+                Submit
+              </button>
+
             </div>
+
           </div>
         </div>
       )}
-    </div>
+
+    </>
   );
 }

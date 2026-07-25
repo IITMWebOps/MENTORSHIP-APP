@@ -1,13 +1,48 @@
-import axios from 'axios';
+import axios from "axios";
 
-const api = axios.create({ baseURL: 'http://localhost:8000/api' });
+const API = axios.create({
+  baseURL: "http://localhost:8000/api",
+});
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
-export const authAPI = { login: (data) => api.post('/auth/login', data) };
-export const userAPI = { getAll: () => api.get('/users'), create: (data) => api.post('/users', data) };
-export const sessionAPI = { create: (data) => api.post('/sessions', data), verify: (id, data) => api.put(`/sessions/${id}/verify`, data) };
+export default API;
+
+export const authAPI = {
+  googleLogin: () => {
+    window.location.href = "http://localhost:8000/api/auth/google";
+  },
+};
+
+export const adminAPI = {
+  dashboard: () => API.get("/admin/dashboard"),
+  uploadUsers: (formData) => API.post("/admin/upload-users", formData),
+};
+
+export const coordinatorAPI = {
+  dashboard: () => API.get("/coordinator/dashboard"),
+};
+
+export const mentorAPI = {
+  dashboard: () => API.get("/mentor/dashboard"),
+  addMentee: (data) => API.post("/mentorship/add", data),
+  createInteraction: (data) => API.post("/sessions", data),
+};
+
+export const menteeAPI = {
+  dashboard: () => API.get("/mentee/dashboard"),
+};
+
+export const feedbackAPI = {
+  submit: (data) => API.post("/feedback", data),
+};
+
+export { API };

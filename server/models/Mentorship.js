@@ -1,37 +1,64 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const mentorshipSchema = new mongoose.Schema({
-  mentor: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
+const mentorshipSchema = new mongoose.Schema(
+  {
+    // Mentor
+    mentor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    // Mentee
+    mentee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    // Mentorship Academic Year
+    academicYear: {
+      type: String,
+      default: "2026-27",
+    },
+
+    // Relationship Status
+    status: {
+      type: String,
+      enum: ["active", "paused", "completed"],
+      default: "active",
+    },
   },
-  mentee: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
-  },
-  department: { 
-    type: String, 
-    required: true 
-  },
-  hostel: { 
-    type: String 
-  },
-  status: { 
-    type: String, 
-    enum: ['active', 'paused', 'completed', 'rejected'], 
-    default: 'active' 
-  },
-  goals: [String],
-  allottedBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' 
-  },
-  allottedAt: { 
-    type: Date, 
-    default: Date.now 
+  {
+    timestamps: true,
   }
-}, { timestamps: true });
+);
 
-module.exports = mongoose.model('Mentorship', mentorshipSchema);
+/*
+|--------------------------------------------------------------------------
+| One mentee can have only one mentor in one academic year
+|--------------------------------------------------------------------------
+*/
+
+mentorshipSchema.index(
+  {
+    mentee: 1,
+    academicYear: 1,
+  },
+  {
+    unique: true,
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Faster lookup for mentor dashboard
+|--------------------------------------------------------------------------
+*/
+
+mentorshipSchema.index({
+  mentor: 1,
+  status: 1,
+});
+
+module.exports = mongoose.model("Mentorship", mentorshipSchema);
