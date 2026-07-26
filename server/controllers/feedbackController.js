@@ -26,32 +26,30 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
-    let mentor = session.mentor;
-    let mentee = null;
-
-    if (req.user.role === "mentor") {
-
-      mentee = null;
-
-    } else {
-
-      const participant = session.participants.find(
-        (p) =>
-          p.mentee.toString() === req.user._id.toString() &&
-          p.verificationStatus === "approved"
-      );
-
-      if (!participant) {
-
-        return res.status(403).json({
-          success: false,
-          message: "You cannot submit feedback.",
-        });
-
-      }
-
-      mentee = req.user._id;
+    // Mentors already capture notes in the meeting summary — feedback is mentee-only.
+    if (req.user.role !== "mentee") {
+      return res.status(403).json({
+        success: false,
+        message: "Only mentees can submit feedback.",
+      });
     }
+
+    const mentor = session.mentor;
+
+    const participant = session.participants.find(
+      (p) =>
+        p.mentee.toString() === req.user._id.toString() &&
+        p.verificationStatus === "approved"
+    );
+
+    if (!participant) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot submit feedback.",
+      });
+    }
+
+    const mentee = req.user._id;
 
     const existing = await Feedback.findOne({
 

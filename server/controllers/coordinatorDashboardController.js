@@ -79,141 +79,70 @@ exports.getDashboard = async (req, res) => {
 
         );
                 /* ============================================================
-           Pending Verifications
+           Pending Verifications (meeting image evidence)
         ============================================================ */
 
         const pendingSessions = await Session.find({
-            "participants.verificationStatus": "pending",
+            coordinatorEvidenceStatus: "pending",
         })
-        .populate("mentor", "name rollNo")
+        .populate("mentor", "name rollNo department")
         .populate("participants.mentee", "name rollNo")
         .sort({
             interactionDate: -1,
         });
 
-        const pendingVerificationList = [];
-
-        pendingSessions.forEach((session) => {
-
-            session.participants.forEach((participant) => {
-
-                if (participant.verificationStatus === "pending") {
-
-                    pendingVerificationList.push({
-
-                        sessionId: session._id,
-
-                        interactionDate: session.interactionDate,
-
-                        interactionType: session.interactionType,
-
-                        mentor: session.mentor,
-
-                        mentee: participant.mentee,
-
-                    });
-
-                }
-
-            });
-
-        });
+        const pendingVerificationList = pendingSessions.map((session) => ({
+            sessionId: session._id,
+            interactionDate: session.interactionDate,
+            interactionType: session.interactionType,
+            meetingSummary: session.meetingSummary,
+            imageLink: session.imageLink || "",
+            mentor: session.mentor,
+            department: session.mentor?.department || "",
+            mentees: session.participants.map((p) => p.mentee).filter(Boolean),
+            menteeStatuses: session.participants.map((p) => ({
+                mentee: p.mentee,
+                verificationStatus: p.verificationStatus,
+            })),
+        }));
 
         const pendingVerifications =
             pendingVerificationList.length;
 
         /* ============================================================
-           Pending Reviews
+           Mentee feedback (coordinator-only; mentors use meeting summary)
         ============================================================ */
 
-        const approvedSessions = await Session.find({
-            "participants.verificationStatus": "approved",
-        })
-        .populate("mentor", "name rollNo")
-        .populate("participants.mentee", "name rollNo");
-
-        const pendingReviewList = [];
-
-        for (const session of approvedSessions) {
-
-            const mentorFeedback = await Feedback.findOne({
-                session: session._id,
-                submittedBy: "mentor",
-            });
-
-            if (!mentorFeedback) {
-
-                pendingReviewList.push({
-
-                    sessionId: session._id,
-
-                    interactionDate: session.interactionDate,
-
-                    interactionType: session.interactionType,
-
-                    mentor: session.mentor,
-
-                    reason: "Mentor feedback pending",
-
-                });
-
-            }
-
-        }
-
-        const pendingReviews =
-            pendingReviewList.length;
-
-        /* ============================================================
-           Mentor Feedback
-        ============================================================ */
-
-        const mentorFeedbacks = await Feedback.find({
-            submittedBy: "mentor",
-        })
-        .populate(
-            "mentor",
-            "rollNo name department"
-        )
-        .populate({
-    path: "session",
-    select:
-        "interactionDate interactionType meetingSummary",
-})
-        .sort({
-            createdAt: -1,
-        });
-
-        const mentorFeedbackSubmitted =
-            mentorFeedbacks.length;
-                    res.status(200).json({
-
-            success: true,
-
-            data: {
-
-                cards: {
-
-                    totalMentors,
-
-                    pendingVerifications,
-
-                    pendingReviews,
-
-                    mentorFeedbackSubmitted,
-
-                },
-
-                mentorList,
-
-                pendingVerificationList,
-
-                pendingReviewList,
-
-                mentorFeedbacks,
-
+        const feedbackPopulate = [
+            { path: "mentor", select: "rollNo name department" },
+            { path: "mentee", select: "rollNo name department" },
+            {
+                path: "session",
+                select:
+                    "interactionDate interactionType meetingSummary imageLink coordinatorEvidenceStatus",
             },
+        ];
 
+        const menteeFeedbacks = await Feedback.find({
+            submittedBy: "mentee",
+        })
+            .populate(feedbackPopulate)
+            .sort({ createdAt: -1 });
+
+        const menteeFeedbackSubmitted = menteeFeedbacks.length;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                cards: {
+                    totalMentors,
+                    pendingVerifications,
+                    menteeFeedbackSubmitted,
+                },
+                mentorList,
+                pendingVerificationList,
+                menteeFeedbacks,
+            },
         });
 
     }

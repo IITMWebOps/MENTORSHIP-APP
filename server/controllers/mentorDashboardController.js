@@ -75,6 +75,11 @@ exports.getDashboard = async (req, res) => {
 
         meetingSummary: session.meetingSummary,
 
+        imageLink: session.imageLink || "",
+
+        coordinatorEvidenceStatus:
+          session.coordinatorEvidenceStatus || "pending",
+
         approved,
 
         pending,

@@ -4,6 +4,7 @@ import DashboardHeader from "../../components/DashboardHeader";
 import StatsCard from "../../components/StatsCard";
 import Loader from "../../components/Loader";
 import { adminAPI } from "../lib/api";
+import { toast } from "../lib/toast";
 
 export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
@@ -48,21 +49,19 @@ export default function AdminDashboard() {
       const res = await adminAPI.uploadUsers(formData);
       const data = res.data;
 
-      setMessage({
-        type: "success",
-        text: `Imported ${data.imported ?? 0} users${
-          data.skipped ? ` · skipped ${data.skipped}` : ""
-        }.`,
-      });
+      const text = `Imported ${data.imported ?? 0} users${
+        data.skipped ? ` · skipped ${data.skipped}` : ""
+      }.`;
+      setMessage({ type: "success", text });
+      toast.success(text);
 
       setCsvFile(null);
       if (fileRef.current) fileRef.current.value = "";
       loadDashboard();
     } catch (err) {
-      setMessage({
-        type: "error",
-        text: err.response?.data?.message || "Unable to upload CSV.",
-      });
+      const text = err.response?.data?.message || "Unable to upload CSV.";
+      setMessage({ type: "error", text });
+      toast.error(text);
     } finally {
       setUploading(false);
     }

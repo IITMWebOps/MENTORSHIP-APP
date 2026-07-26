@@ -16,15 +16,6 @@ passport.use(
             try {
                 const email = profile.emails[0].value.toLowerCase();
 
-                if (!email.endsWith("@smail.iitm.ac.in")) {
-                    return done(null, false, {
-                        message: "Only IIT Madras SMAIL accounts are allowed.",
-                    });
-                }
-
-
-                
-
                 const user = await User.findOne({
                     email,
                     status: true,

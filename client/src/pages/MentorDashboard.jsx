@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import DashboardHeader from "../../components/DashboardHeader";
 import StatsCard from "../../components/StatsCard";
 import Loader from "../../components/Loader";
 
 import { mentorAPI } from "../lib/api";
+import { toast } from "../lib/toast";
 
 export default function MentorDashboard() {
 
@@ -29,6 +31,8 @@ export default function MentorDashboard() {
       interactionType: "In Person",
 
       meetingSummary: "",
+
+      imageLink: "",
 
       menteeIds: [],
 
@@ -318,13 +322,14 @@ export default function MentorDashboard() {
 
                     setRollNo("");
 
+                    toast.success("Mentee added.");
                     loadDashboard();
 
                   }
 
                   catch (err) {
 
-                    alert(
+                    toast.error(
 
                       err.response?.data
                         ?.message ||
@@ -382,12 +387,13 @@ export default function MentorDashboard() {
 
                 await mentorAPI.createInteraction(interactionData);
 
-                alert("Interaction created successfully.");
+                toast.success("Interaction submitted.");
 
                 setInteractionData({
                   interactionDate: "",
                   interactionType: "In Person",
                   meetingSummary: "",
+                  imageLink: "",
                   menteeIds: [],
                 });
 
@@ -397,7 +403,7 @@ export default function MentorDashboard() {
 
               } catch (err) {
 
-                alert(
+                toast.error(
                   err.response?.data?.message ||
                   "Unable to create interaction."
                 );
@@ -444,9 +450,9 @@ export default function MentorDashboard() {
                 }
               >
 
-                <option>In Person</option>
-                <option>Online</option>
-                <option>Phone Call</option>
+                <option value="In Person">In Person</option>
+                <option value="online">Online</option>
+                <option value="Phone Call">Phone Call</option>
 
               </select>
 
@@ -468,7 +474,34 @@ export default function MentorDashboard() {
                     meetingSummary: e.target.value,
                   })
                 }
+                required
               />
+
+            </div>
+
+            <div>
+
+              <label className="block mb-2 font-medium">
+                Meeting image link
+              </label>
+
+              <input
+                type="url"
+                placeholder="https://…"
+                className="border rounded-lg p-3 w-full"
+                value={interactionData.imageLink}
+                onChange={(e) =>
+                  setInteractionData({
+                    ...interactionData,
+                    imageLink: e.target.value,
+                  })
+                }
+                required
+              />
+
+              <p className="text-sm text-gray-500 mt-1">
+                Paste a public link to a photo of the meeting (Drive, etc.). Coordinator will verify it.
+              </p>
 
             </div>
 
@@ -571,11 +604,17 @@ export default function MentorDashboard() {
 
                 <th className="p-3 text-left">Meeting Summary</th>
 
+                <th className="p-3 text-left">Image</th>
+
+                <th className="p-3 text-left">Evidence</th>
+
                 <th className="p-3 text-left">Approved</th>
 
                 <th className="p-3 text-left">Pending</th>
 
                 <th className="p-3 text-left">Rejected</th>
+
+                <th className="p-3 text-center">Details</th>
 
               </tr>
 
@@ -588,7 +627,7 @@ export default function MentorDashboard() {
                 <tr>
 
                   <td
-                    colSpan="6"
+                    colSpan="9"
                     className="text-center p-8 text-gray-500"
                   >
 
@@ -622,10 +661,32 @@ export default function MentorDashboard() {
 
                       </td>
 
-                      <td className="p-3">
+                      <td
+                        className="p-3 max-w-[12rem] truncate"
+                        title={interaction.meetingSummary}
+                      >
 
                         {interaction.meetingSummary}
 
+                      </td>
+
+                      <td className="p-3">
+                        {interaction.imageLink ? (
+                          <a
+                            href={interaction.imageLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sky-700 underline font-medium"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      <td className="p-3 capitalize">
+                        {interaction.coordinatorEvidenceStatus || "pending"}
                       </td>
 
                       <td className="p-3">
@@ -665,6 +726,15 @@ export default function MentorDashboard() {
                               )
                               .join(", ")}
 
+                      </td>
+
+                      <td className="p-3 text-center">
+                        <Link
+                          to={`/interaction/${interaction._id}`}
+                          className="text-sky-700 font-semibold underline"
+                        >
+                          View
+                        </Link>
                       </td>
 
                     </tr>

@@ -54,6 +54,36 @@ const sessionSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Proof of meeting (Drive / Imgur / etc.) — required on create; optional for legacy docs
+    imageLink: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    coordinatorEvidenceStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
+    },
+
+    coordinatorEvidenceRemarks: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    coordinatorVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+
+    coordinatorVerifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     participants: [participantSchema],
   },
   {

@@ -1,12 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardHeader from "../../components/DashboardHeader";
 import StatsCard from "../../components/StatsCard";
 import Loader from "../../components/Loader";
 import { coordinatorAPI } from "../lib/api";
+import { toast } from "../lib/toast";
+
+function matchesSearch(text, query) {
+  if (!query.trim()) return true;
+  return String(text || "")
+    .toLowerCase()
+    .includes(query.trim().toLowerCase());
+}
+
+function mentorIdOf(item) {
+  const id = item?.mentor?._id || item?.mentor;
+  return id ? String(id) : "";
+}
 
 export default function CoordinatorDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("all");
+  const [sortBy, setSortBy] = useState("date-desc");
+  const [selectedMentorId, setSelectedMentorId] = useState(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -35,6 +53,161 @@ export default function CoordinatorDashboard() {
     }
   };
 
+  const reviewEvidence = async (sessionId, status) => {
+    let remarks = "";
+    if (status === "rejected") {
+      const input = window.prompt("Reason for rejecting evidence (optional):");
+      if (input === null) return;
+      remarks = input;
+    }
+
+    try {
+      await coordinatorAPI.verifyEvidence(sessionId, { status, remarks });
+      toast.success(
+        status === "verified"
+          ? "Meeting evidence verified."
+          : "Meeting evidence rejected."
+      );
+      await loadDashboard();
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Unable to update evidence status."
+      );
+    }
+  };
+
+  const departments = useMemo(() => {
+    if (!dashboard) return [];
+    const set = new Set();
+    (dashboard.mentorList || []).forEach((m) => {
+      if (m.department) set.add(m.department);
+    });
+    (dashboard.pendingVerificationList || []).forEach((item) => {
+      const d = item.department || item.mentor?.department;
+      if (d) set.add(d);
+    });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [dashboard]);
+
+  const filteredMentors = useMemo(() => {
+    if (!dashboard) return [];
+    let list = [...(dashboard.mentorList || [])];
+
+    if (department !== "all") {
+      list = list.filter((m) => m.department === department);
+    }
+
+    list = list.filter(
+      (m) =>
+        matchesSearch(m.name, search) ||
+        matchesSearch(m.rollNo, search) ||
+        matchesSearch(m.email, search) ||
+        matchesSearch(m.department, search)
+    );
+
+    list.sort((a, b) => {
+      if (sortBy === "dept-asc") {
+        return (a.department || "").localeCompare(b.department || "") ||
+          (a.name || "").localeCompare(b.name || "");
+      }
+      if (sortBy === "dept-desc") {
+        return (b.department || "").localeCompare(a.department || "") ||
+          (a.name || "").localeCompare(b.name || "");
+      }
+      if (sortBy === "name-asc") {
+        return (a.name || "").localeCompare(b.name || "");
+      }
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+    return list;
+  }, [dashboard, search, department, sortBy]);
+
+  const selectedMentor = useMemo(() => {
+    if (!dashboard || !selectedMentorId) return null;
+    return (
+      (dashboard.mentorList || []).find(
+        (m) => String(m._id) === String(selectedMentorId)
+      ) || null
+    );
+  }, [dashboard, selectedMentorId]);
+
+  const filteredPending = useMemo(() => {
+    if (!dashboard) return [];
+    let list = [...(dashboard.pendingVerificationList || [])];
+
+    if (selectedMentorId) {
+      list = list.filter(
+        (item) => mentorIdOf(item) === String(selectedMentorId)
+      );
+    } else {
+      if (department !== "all") {
+        list = list.filter(
+          (item) => (item.department || item.mentor?.department) === department
+        );
+      }
+
+      list = list.filter((item) => {
+        const menteeNames = (item.mentees || []).map((m) => m?.name).join(" ");
+        return (
+          matchesSearch(item.mentor?.name, search) ||
+          matchesSearch(item.mentor?.rollNo, search) ||
+          matchesSearch(item.department || item.mentor?.department, search) ||
+          matchesSearch(menteeNames, search) ||
+          matchesSearch(item.meetingSummary, search)
+        );
+      });
+    }
+
+    list.sort((a, b) => {
+      const deptA = a.department || a.mentor?.department || "";
+      const deptB = b.department || b.mentor?.department || "";
+      if (sortBy === "dept-asc") {
+        return deptA.localeCompare(deptB) ||
+          new Date(b.interactionDate) - new Date(a.interactionDate);
+      }
+      if (sortBy === "dept-desc") {
+        return deptB.localeCompare(deptA) ||
+          new Date(b.interactionDate) - new Date(a.interactionDate);
+      }
+      if (sortBy === "name-asc") {
+        return (a.mentor?.name || "").localeCompare(b.mentor?.name || "");
+      }
+      // date-desc default
+      return new Date(b.interactionDate) - new Date(a.interactionDate);
+    });
+
+    return list;
+  }, [dashboard, search, department, sortBy, selectedMentorId]);
+
+  const filteredMenteeFeedbacks = useMemo(() => {
+    if (!dashboard) return [];
+    let list = [...(dashboard.menteeFeedbacks || [])];
+    if (selectedMentorId) {
+      return list.filter(
+        (f) => mentorIdOf(f) === String(selectedMentorId)
+      );
+    }
+    if (department !== "all") {
+      list = list.filter((f) => f.mentor?.department === department);
+    }
+    if (search.trim()) {
+      list = list.filter(
+        (f) =>
+          matchesSearch(f.mentor?.name, search) ||
+          matchesSearch(f.mentee?.name, search) ||
+          matchesSearch(f.mentor?.department, search) ||
+          matchesSearch(f.feedback, search)
+      );
+    }
+    return list;
+  }, [dashboard, search, department, selectedMentorId]);
+
+  const selectMentor = (mentor) => {
+    const id = String(mentor._id);
+    setSelectedMentorId((prev) => (prev === id ? null : id));
+  };
+
   if (loading) return <Loader />;
 
   return (
@@ -44,7 +217,52 @@ export default function CoordinatorDashboard() {
         subtitle={subtitle}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      <div className="dash-box mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-600">Search</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Mentor name, roll no, mentee…"
+              className="mt-1 w-full border rounded-xl px-3 py-2.5"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-600">Department</span>
+            <select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="mt-1 w-full border rounded-xl px-3 py-2.5 bg-white"
+            >
+              <option value="all">All departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-600">Sort by</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="mt-1 w-full border rounded-xl px-3 py-2.5 bg-white"
+            >
+              <option value="date-desc">Newest date</option>
+              <option value="dept-asc">Department A–Z</option>
+              <option value="dept-desc">Department Z–A</option>
+              <option value="name-asc">Mentor name A–Z</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
 
         <StatsCard
           title="Mentors"
@@ -53,30 +271,61 @@ export default function CoordinatorDashboard() {
 
         <StatsCard
           title="Pending Verifications"
-          value={dashboard.cards.pendingVerifications}
+          value={
+            selectedMentorId
+              ? filteredPending.length
+              : dashboard.cards.pendingVerifications
+          }
           color="bg-yellow-500"
         />
 
         <StatsCard
-          title="Pending Reviews"
-          value={dashboard.cards.pendingReviews}
-          color="bg-red-500"
-        />
-
-        <StatsCard
-          title="Feedback Submitted"
-          value={dashboard.cards.mentorFeedbackSubmitted}
-          color="bg-green-600"
+          title="Mentee feedback (private)"
+          value={
+            selectedMentorId
+              ? filteredMenteeFeedbacks.length
+              : dashboard.cards.menteeFeedbackSubmitted || 0
+          }
+          color="bg-indigo-600"
         />
 
       </div>
+
+      {selectedMentor ? (
+        <div className="dash-box mb-6 flex flex-wrap items-center justify-between gap-3 border-l-4 border-sky-600">
+          <div>
+            <p className="text-sm text-gray-500">Viewing interactions for</p>
+            <p className="font-semibold text-lg">
+              {selectedMentor.name}
+              <span className="text-gray-500 font-normal text-sm ml-2">
+                {selectedMentor.rollNo}
+                {selectedMentor.department
+                  ? ` · ${selectedMentor.department}`
+                  : ""}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedMentorId(null)}
+            className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm"
+          >
+            Clear selection
+          </button>
+        </div>
+      ) : null}
+
             {/* Mentor List */}
 
       <div className="dash-box mb-8">
 
-        <h2 className="text-2xl font-semibold mb-5">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-2">
           Mentor List
         </h2>
+        <p className="text-sm text-gray-500 mb-5">
+          Click a mentor to show only their interactions. Showing{" "}
+          {filteredMentors.length} of {dashboard.mentorList.length}
+        </p>
 
         <div className="overflow-x-auto">
 
@@ -99,7 +348,7 @@ export default function CoordinatorDashboard() {
 
             <tbody>
 
-              {dashboard.mentorList.length === 0 ? (
+              {filteredMentors.length === 0 ? (
 
                 <tr>
 
@@ -107,18 +356,26 @@ export default function CoordinatorDashboard() {
                     colSpan="6"
                     className="text-center p-6 text-gray-500"
                   >
-                    No mentors found.
+                    No mentors match your filters.
                   </td>
 
                 </tr>
 
               ) : (
 
-                dashboard.mentorList.map((mentor) => (
+                filteredMentors.map((mentor) => {
+                  const isSelected =
+                    String(selectedMentorId) === String(mentor._id);
 
+                  return (
                   <tr
                     key={mentor._id}
-                    className="border-t hover:bg-gray-50"
+                    onClick={() => selectMentor(mentor)}
+                    className={`border-t cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-sky-50 ring-1 ring-inset ring-sky-200"
+                        : "hover:bg-gray-50"
+                    }`}
                   >
 
                     <td className="p-3">
@@ -127,6 +384,11 @@ export default function CoordinatorDashboard() {
 
                     <td className="p-3 font-medium">
                       {mentor.name}
+                      {isSelected ? (
+                        <span className="ml-2 text-xs font-semibold text-sky-700">
+                          Selected
+                        </span>
+                      ) : null}
                     </td>
 
                     <td className="p-3">
@@ -158,8 +420,8 @@ export default function CoordinatorDashboard() {
                     </td>
 
                   </tr>
-
-                ))
+                  );
+                })
 
               )}
 
@@ -173,9 +435,16 @@ export default function CoordinatorDashboard() {
             {/* Pending Verifications */}
 
       <div className="dash-box mb-8">
-        <h2 className="text-2xl font-semibold mb-5">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-2">
           Pending Verifications
         </h2>
+        <p className="text-sm text-gray-500 mb-5">
+          Meeting photos waiting for you to Verify or Reject. Showing{" "}
+          {filteredPending.length}
+          {selectedMentor
+            ? ` for ${selectedMentor.name}`
+            : ` of ${dashboard.pendingVerificationList.length}`}.
+        </p>
 
         <div className="overflow-x-auto">
           <table className="min-w-full border">
@@ -183,94 +452,102 @@ export default function CoordinatorDashboard() {
               <tr>
                 <th className="p-3 text-left">Date</th>
                 <th className="p-3 text-left">Mentor</th>
-                <th className="p-3 text-left">Mentee</th>
-                <th className="p-3 text-left">Interaction Type</th>
+                <th className="p-3 text-left">Dept</th>
+                <th className="p-3 text-left">Mentees</th>
+                <th className="p-3 text-left">Type</th>
+                <th className="p-3 text-left">Summary</th>
+                <th className="p-3 text-left">Image</th>
+                <th className="p-3 text-center">Details</th>
+                <th className="p-3 text-center">Action</th>
               </tr>
             </thead>
 
             <tbody>
-              {dashboard.pendingVerificationList.length === 0 ? (
+              {filteredPending.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="4"
+                    colSpan="9"
                     className="text-center p-6 text-gray-500"
                   >
-                    No pending verifications.
+                    {dashboard.pendingVerificationList.length === 0
+                      ? "No pending verifications."
+                      : "No verifications match your filters."}
                   </td>
                 </tr>
               ) : (
-                dashboard.pendingVerificationList.map((item) => (
-                  <tr key={`${item.sessionId}-${item.mentee._id}`} className="border-t">
-                    <td className="p-3">
-                      {new Date(item.interactionDate).toLocaleDateString()}
-                    </td>
-
-                    <td className="p-3">
-                      {item.mentor?.name}
-                    </td>
-
-                    <td className="p-3">
-                      {item.mentee?.name}
-                    </td>
-
-                    <td className="p-3">
-                      {item.interactionType}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Pending Reviews */}
-
-      <div className="dash-box mb-8">
-        <h2 className="text-2xl font-semibold mb-5">
-          Pending Reviews
-        </h2>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full border">
-            <thead className="bg-slate-100">
-              <tr>
-                <th className="p-3 text-left">Date</th>
-                <th className="p-3 text-left">Mentor</th>
-                <th className="p-3 text-left">Interaction Type</th>
-                <th className="p-3 text-left">Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {dashboard.pendingReviewList.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="4"
-                    className="text-center p-6 text-gray-500"
-                  >
-                    No pending reviews.
-                  </td>
-                </tr>
-              ) : (
-                dashboard.pendingReviewList.map((item) => (
+                filteredPending.map((item) => (
                   <tr key={item.sessionId} className="border-t">
-                    <td className="p-3">
+                    <td className="p-3 whitespace-nowrap">
                       {new Date(item.interactionDate).toLocaleDateString()}
                     </td>
 
                     <td className="p-3">
-                      {item.mentor?.name}
+                      <div className="font-medium">{item.mentor?.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {item.mentor?.rollNo || ""}
+                      </div>
+                    </td>
+
+                    <td className="p-3">
+                      {item.department || item.mentor?.department || "-"}
+                    </td>
+
+                    <td className="p-3">
+                      {(item.mentees || [])
+                        .map((m) => m?.name)
+                        .filter(Boolean)
+                        .join(", ") || "-"}
                     </td>
 
                     <td className="p-3">
                       {item.interactionType}
                     </td>
 
+                    <td className="p-3 max-w-[12rem] truncate" title={item.meetingSummary}>
+                      {item.meetingSummary}
+                    </td>
+
                     <td className="p-3">
-                      <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
-                        {item.reason}
-                      </span>
+                      {item.imageLink ? (
+                        <a
+                          href={item.imageLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sky-700 underline font-medium"
+                        >
+                          Open image
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">No link</span>
+                      )}
+                    </td>
+
+                    <td className="p-3 text-center">
+                      <Link
+                        to={`/interaction/${item.sessionId}`}
+                        className="text-sky-700 font-semibold underline"
+                      >
+                        View
+                      </Link>
+                    </td>
+
+                    <td className="p-3">
+                      <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => reviewEvidence(item.sessionId, "verified")}
+                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
+                        >
+                          Verify
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reviewEvidence(item.sessionId, "rejected")}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap"
+                        >
+                          Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -280,46 +557,45 @@ export default function CoordinatorDashboard() {
         </div>
       </div>
 
-      {/* Mentor Feedback */}
+      {/* Mentee feedback — coordinators only (hidden from mentors) */}
 
       <div className="dash-box mb-8">
-        <h2 className="text-2xl font-semibold mb-5">
-          Mentor Feedback
+        <h2 className="text-xl sm:text-2xl font-semibold mb-2">
+          Mentee Feedback
         </h2>
+        <p className="text-sm text-gray-500 mb-5">
+          Private reviews from mentees about mentors. Not visible to mentors.
+          Showing {filteredMenteeFeedbacks.length}
+          {selectedMentor
+            ? ` for ${selectedMentor.name}`
+            : ` of ${(dashboard.menteeFeedbacks || []).length}`}.
+        </p>
 
         <div className="space-y-4">
-
-          {dashboard.mentorFeedbacks.length === 0 ? (
-
+          {filteredMenteeFeedbacks.length === 0 ? (
             <p className="text-gray-500">
-              No mentor feedback submitted yet.
+              {(dashboard.menteeFeedbacks || []).length === 0
+                ? "No mentee feedback submitted yet."
+                : "No mentee feedback for this filter."}
             </p>
-
           ) : (
-
-            dashboard.mentorFeedbacks.map((feedback) => (
-
-              <div
-                key={feedback._id}
-                className="border rounded-lg p-5"
-              >
-
+            filteredMenteeFeedbacks.map((feedback) => (
+              <div key={feedback._id} className="border rounded-lg p-5">
                 <div className="flex flex-wrap justify-between items-start gap-2">
-
                   <div className="min-w-0">
                     <h3 className="font-semibold text-lg">
-                      {feedback.mentor?.name}
+                      {feedback.mentee?.name || "Mentee"}
                     </h3>
-
                     <p className="text-gray-500 text-sm">
-                      {feedback.mentor?.department}
+                      About mentor: {feedback.mentor?.name || "-"}
+                      {feedback.mentor?.department
+                        ? ` · ${feedback.mentor.department}`
+                        : ""}
                     </p>
                   </div>
-
                   <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full shrink-0">
                     ⭐ {feedback.rating}/5
                   </span>
-
                 </div>
 
                 <div className="mt-4">
@@ -327,23 +603,27 @@ export default function CoordinatorDashboard() {
                     <strong>Interaction:</strong>{" "}
                     {feedback.session?.interactionType}
                   </p>
-
                   <p className="mt-2">
                     <strong>Summary:</strong>{" "}
                     {feedback.session?.meetingSummary}
                   </p>
-
-                  <p className="mt-3 text-gray-700">
+                  {feedback.session?._id ? (
+                    <p className="mt-2">
+                      <Link
+                        to={`/interaction/${feedback.session._id}`}
+                        className="text-sky-700 underline font-medium"
+                      >
+                        Open interaction
+                      </Link>
+                    </p>
+                  ) : null}
+                  <p className="mt-3 text-gray-700 whitespace-pre-wrap">
                     {feedback.feedback}
                   </p>
                 </div>
-
               </div>
-
             ))
-
           )}
-
         </div>
       </div>
 

@@ -57,6 +57,11 @@ exports.getDashboard = async (req, res) => {
 
                 meetingSummary: session.meetingSummary,
 
+                imageLink: session.imageLink || "",
+
+                coordinatorEvidenceStatus:
+                    session.coordinatorEvidenceStatus || "pending",
+
                 verificationStatus:
                     participant.verificationStatus,
 
@@ -105,12 +110,6 @@ const feedbackHistory = sessionIds.map((sessionId) => {
         s => s._id.toString() === sessionId.toString()
     );
 
-    const mentorFeedback = feedbacks.find(
-        f =>
-            f.session._id.toString() === sessionId.toString() &&
-            f.submittedBy === "mentor"
-    );
-
     const myFeedback = feedbacks.find(
         f =>
             f.session._id.toString() === sessionId.toString() &&
@@ -128,14 +127,6 @@ const feedbackHistory = sessionIds.map((sessionId) => {
         interactionType: session.interactionType,
 
         meetingSummary: session.meetingSummary,
-
-        mentorFeedback: mentorFeedback
-            ? {
-                  rating: mentorFeedback.rating,
-                  feedback: mentorFeedback.feedback,
-                  submittedAt: mentorFeedback.createdAt,
-              }
-            : null,
 
         myFeedback: myFeedback
             ? {

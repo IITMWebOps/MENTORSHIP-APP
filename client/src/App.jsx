@@ -17,7 +17,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CoordinatorDashboard from "./pages/CoordinatorDashboard";
 import MentorDashboard from "./pages/MentorDashboard";
 import MenteeDashboard from "./pages/MenteeDashboard";
+import InteractionDetail from "./pages/InteractionDetail";
+import ToastHost from "../components/ToastHost";
 import { authAPI } from "./lib/api";
+import { toast } from "./lib/toast";
 
 function roleHome(role) {
   switch (role) {
@@ -60,7 +63,7 @@ const GoogleAuthHandler = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const finishLogin = async (token, userFromUrl) => {
+    const finishLogin = async (token, userFromUrl, { welcome } = {}) => {
       localStorage.setItem("token", token);
 
       try {
@@ -71,12 +74,20 @@ const GoogleAuthHandler = () => {
         if (!user?.role) throw new Error("Invalid user");
 
         localStorage.setItem("user", JSON.stringify(user));
+        if (welcome) {
+          toast.success(`Welcome, ${user.name?.split(" ")[0] || "back"}!`);
+        }
         navigate(roleHome(user.role), { replace: true });
         return;
       } catch {
         // Fallback if /me fails (e.g. brief network glitch) but redirect had user
         if (userFromUrl?.role) {
           localStorage.setItem("user", JSON.stringify(userFromUrl));
+          if (welcome) {
+            toast.success(
+              `Welcome, ${userFromUrl.name?.split(" ")[0] || "back"}!`
+            );
+          }
           navigate(roleHome(userFromUrl.role), { replace: true });
           return;
         }
@@ -103,7 +114,7 @@ const GoogleAuthHandler = () => {
     if (tokenFromUrl) {
       // Strip secrets from the address bar without remounting this effect
       window.history.replaceState({}, "", "/dashboard");
-      finishLogin(tokenFromUrl, userFromUrl);
+      finishLogin(tokenFromUrl, userFromUrl, { welcome: true });
       return () => {
         cancelled = true;
       };
@@ -111,7 +122,7 @@ const GoogleAuthHandler = () => {
 
     const cachedToken = localStorage.getItem("token");
     if (cachedToken) {
-      finishLogin(cachedToken, readStoredUser());
+      finishLogin(cachedToken, readStoredUser(), { welcome: false });
       return () => {
         cancelled = true;
       };
@@ -159,6 +170,7 @@ export default function App() {
   return (
 
     <Router>
+      <ToastHost />
 
       <Routes>
 
@@ -214,6 +226,23 @@ export default function App() {
                 allowedRoles={["mentee"]}
               >
                 <MenteeDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/interaction/:id"
+            element={
+              <ProtectedRoute
+                allowedRoles={[
+                  "mentor",
+                  "mentee",
+                  "coordinator",
+                  "super_coordinator",
+                  "admin",
+                ]}
+              >
+                <InteractionDetail />
               </ProtectedRoute>
             }
           />

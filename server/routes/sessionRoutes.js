@@ -6,8 +6,10 @@ const {
   createSession,
   getMySessions,
   getMyInteractions,
+  getSessionById,
   approveSession,
   rejectSession,
+  verifyEvidence,
 } = require("../controllers/sessionController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -59,6 +61,30 @@ router.put(
   protect,
   allowRoles("mentee"),
   rejectSession
+);
+
+/* ============================================================================
+   Shared detail + coordinator evidence
+============================================================================ */
+
+router.get(
+  "/:id",
+  protect,
+  allowRoles(
+    "mentor",
+    "mentee",
+    "coordinator",
+    "super_coordinator",
+    "admin"
+  ),
+  getSessionById
+);
+
+router.put(
+  "/:id/evidence",
+  protect,
+  allowRoles("coordinator", "super_coordinator"),
+  verifyEvidence
 );
 
 module.exports = router;

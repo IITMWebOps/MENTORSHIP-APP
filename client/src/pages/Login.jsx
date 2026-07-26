@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { authAPI } from "../lib/api";
+import { toast } from "../lib/toast";
 
 const ERRORS = {
   unauthorized:
-    "This Google account isn’t registered in SAATHI, or isn’t an IITM smail ID.",
+    "This Google account isn’t registered in SAATHI.",
   auth: "Sign-in didn’t finish. Please try again.",
   session: "Signed in, but we couldn’t load your profile. Check API URL / CORS.",
 };
@@ -11,6 +13,15 @@ const ERRORS = {
 export default function Login() {
   const [params] = useSearchParams();
   const error = ERRORS[params.get("error")] || "";
+
+  useEffect(() => {
+    if (!error) return;
+    // Avoid StrictMode double-toast; keep the inline banner as the main message
+    const key = `login-toast:${params.get("error")}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    toast.error(error);
+  }, [error, params]);
 
   return (
     <div className="landing">

@@ -34,6 +34,8 @@ export const adminAPI = {
 
 export const coordinatorAPI = {
   dashboard: () => API.get("/coordinator/dashboard"),
+  verifyEvidence: (sessionId, data) =>
+    API.put(`/sessions/${sessionId}/evidence`, data),
 };
 
 export const mentorAPI = {
@@ -48,6 +50,10 @@ export const menteeAPI = {
 
 export const feedbackAPI = {
   submit: (data) => API.post("/feedback", data),
+};
+
+export const sessionAPI = {
+  getById: (id) => API.get(`/sessions/${id}`),
 };
 
 export { API, API_BASE };

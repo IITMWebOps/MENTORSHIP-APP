@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardHeader from "../../components/DashboardHeader";
 import StatsCard from "../../components/StatsCard";
 
 import Loader from "../../components/Loader";
 import API, { menteeAPI, feedbackAPI } from "../lib/api";
+import { toast } from "../lib/toast";
 
 export default function MenteeDashboard() {
   const [dashboard, setDashboard] = useState(null);
@@ -35,18 +37,22 @@ export default function MenteeDashboard() {
   const approveInteraction = async (id) => {
     try {
       await API.put(`/sessions/${id}/approve`);
+      toast.success("Interaction approved.");
       loadDashboard();
     } catch (err) {
-      alert(err.response?.data?.message || "Unable to approve interaction.");
+      toast.error(err.response?.data?.message || "Unable to approve interaction.");
     }
   };
 
   const rejectInteraction = async (id) => {
     try {
-      await API.put(`/session/${id}/reject`);
+      await API.put(`/sessions/${id}/reject`, {
+        verificationRemarks: "",
+      });
+      toast.success("Interaction rejected.");
       loadDashboard();
     } catch (err) {
-      alert(err.response?.data?.message || "Unable to reject interaction.");
+      toast.error(err.response?.data?.message || "Unable to reject interaction.");
     }
   };
 
@@ -64,14 +70,21 @@ export default function MenteeDashboard() {
         feedback: "",
       });
 
+      toast.success("Feedback submitted.");
       loadDashboard();
 
     } catch (err) {
-      alert(err.response?.data?.message || "Unable to submit feedback.");
+      toast.error(err.response?.data?.message || "Unable to submit feedback.");
     }
   };
 
   if (loading) return <Loader />;
+
+  const feedbackSubmittedIds = new Set(
+    (dashboard.feedbackHistory || [])
+      .filter((item) => item.myFeedback)
+      .map((item) => String(item.sessionId))
+  );
 
   return (
     <>
@@ -100,7 +113,7 @@ export default function MenteeDashboard() {
         />
 
         <StatsCard
-          title="Feedback"
+          title="Meetings"
           value={dashboard.feedbackHistory.length}
         />
       </div>
@@ -167,6 +180,10 @@ export default function MenteeDashboard() {
 
                 <th className="p-3 text-left">Summary</th>
 
+                <th className="p-3 text-left">Image</th>
+
+                <th className="p-3 text-center">Details</th>
+
                 <th className="p-3 text-center">Action</th>
 
               </tr>
@@ -179,7 +196,7 @@ export default function MenteeDashboard() {
 
                 <tr>
                   <td
-                    colSpan="4"
+                    colSpan="6"
                     className="text-center p-6 text-gray-500"
                   >
                     No pending interactions.
@@ -202,6 +219,30 @@ export default function MenteeDashboard() {
 
                     <td className="p-3">
                       {item.meetingSummary}
+                    </td>
+
+                    <td className="p-3">
+                      {item.imageLink ? (
+                        <a
+                          href={item.imageLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sky-700 underline font-medium"
+                        >
+                          Image
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+
+                    <td className="p-3 text-center">
+                      <Link
+                        to={`/interaction/${item._id}`}
+                        className="text-sky-700 font-semibold underline"
+                      >
+                        View
+                      </Link>
                     </td>
 
                     <td className="p-3">
@@ -253,6 +294,7 @@ export default function MenteeDashboard() {
                 <th className="p-3 text-left">Date</th>
                 <th className="p-3 text-left">Type</th>
                 <th className="p-3 text-left">Summary</th>
+                <th className="p-3 text-center">Details</th>
                 <th className="p-3 text-center">Feedback</th>
               </tr>
             </thead>
@@ -261,7 +303,7 @@ export default function MenteeDashboard() {
               {dashboard.approvedInteractions.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="4"
+                    colSpan="5"
                     className="text-center p-6 text-gray-500"
                   >
                     No approved interactions.
@@ -278,20 +320,40 @@ export default function MenteeDashboard() {
                       {item.interactionType}
                     </td>
 
-                    <td className="p-3">
+                    <td className="p-3 max-w-[12rem] truncate" title={item.meetingSummary}>
                       {item.meetingSummary}
                     </td>
 
                     <td className="p-3 text-center">
-                      <button
-                        onClick={() => {
-                          setSelectedSession(item._id);
-                          setFeedbackModal(true);
-                        }}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+                      <Link
+                        to={`/interaction/${item._id}`}
+                        className="text-sky-700 font-semibold underline"
                       >
-                        Submit Feedback
-                      </button>
+                        View
+                      </Link>
+                    </td>
+
+                    <td className="p-3 text-center">
+                      {feedbackSubmittedIds.has(String(item._id)) ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="bg-slate-200 text-slate-600 px-4 py-2 rounded cursor-default opacity-90"
+                        >
+                          Submitted
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSession(item._id);
+                            setFeedbackModal(true);
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+                        >
+                          Submit Feedback
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -319,6 +381,7 @@ export default function MenteeDashboard() {
                 <th className="p-3">Date</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Summary</th>
+                <th className="p-3 text-center">Details</th>
               </tr>
             </thead>
 
@@ -328,7 +391,7 @@ export default function MenteeDashboard() {
 
                 <tr>
                   <td
-                    colSpan="3"
+                    colSpan="4"
                     className="text-center p-6 text-gray-500"
                   >
                     No rejected interactions.
@@ -349,8 +412,17 @@ export default function MenteeDashboard() {
                       {item.interactionType}
                     </td>
 
-                    <td className="p-3">
+                    <td className="p-3 max-w-[12rem] truncate" title={item.meetingSummary}>
                       {item.meetingSummary}
+                    </td>
+
+                    <td className="p-3 text-center">
+                      <Link
+                        to={`/interaction/${item._id}`}
+                        className="text-sky-700 font-semibold underline"
+                      >
+                        View
+                      </Link>
                     </td>
 
                   </tr>
@@ -367,12 +439,12 @@ export default function MenteeDashboard() {
 
       </div>
 
-      {/* Feedback History */}
+      {/* Meeting History */}
 
       <div className="dash-box mb-8">
 
-        <h2 className="text-2xl font-semibold mb-5">
-          Feedback History
+        <h2 className="text-xl sm:text-2xl font-semibold mb-5">
+          Meeting History
         </h2>
 
         <div className="space-y-4">
@@ -380,7 +452,7 @@ export default function MenteeDashboard() {
           {dashboard.feedbackHistory.length === 0 ? (
 
             <p className="text-gray-500">
-              No feedback available.
+              No meetings yet.
             </p>
 
           ) : (
@@ -415,31 +487,16 @@ export default function MenteeDashboard() {
                   {item.meetingSummary}
                 </p>
 
-                <hr className="my-4" />
-
-                <div>
-
-                  <h4 className="font-semibold mb-2">
-                    Mentor Feedback
-                  </h4>
-
-                  {item.mentorFeedback ? (
-                    <>
-                      <p>
-                        Rating : {item.mentorFeedback.rating}/5
-                      </p>
-
-                      <p className="mt-1">
-                        {item.mentorFeedback.feedback}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-gray-500">
-                      Mentor has not submitted feedback yet.
-                    </p>
-                  )}
-
-                </div>
+                {item.myFeedback ? (
+                  <>
+                    <hr className="my-4" />
+                    <div>
+                      <h4 className="font-semibold mb-2">Your Feedback</h4>
+                      <p>Rating : {item.myFeedback.rating}/5</p>
+                      <p className="mt-1">{item.myFeedback.feedback}</p>
+                    </div>
+                  </>
+                ) : null}
 
               </div>
 

@@ -13,11 +13,11 @@ const { allowRoles } = require("../middleware/roleMiddleware");
    Feedback Routes
 ============================================================================ */
 
-// Mentor Feedback
+// Mentee feedback only (mentor notes live in meeting summary)
 router.post(
   "/",
   protect,
-  allowRoles("mentor", "mentee"),
+  allowRoles("mentee"),
   submitFeedback
 );
 
