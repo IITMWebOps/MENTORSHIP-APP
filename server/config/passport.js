@@ -16,8 +16,17 @@ passport.use(
             try {
                 const email = profile.emails[0].value.toLowerCase();
 
+                if (!email.endsWith("@smail.iitm.ac.in")) {
+                    return done(null, false, {
+                        message: "Only IIT Madras SMAIL accounts are allowed.",
+                    });
+                }
+
+                // SMAIL local-part is the roll number (e.g. me21b001@smail… → ME21B001)
+                const rollNo = email.split("@")[0].toUpperCase();
+
                 const user = await User.findOne({
-                    email,
+                    rollNo,
                     status: true,
                 });
 
@@ -29,6 +38,8 @@ passport.use(
 
                 user.googleId = profile.id;
                 user.lastLogin = new Date();
+                // Keep stored email in sync with the SMAIL used to sign in
+                user.email = email;
 
                 if (profile.photos && profile.photos.length > 0) {
                     user.profilePhoto = profile.photos[0].value;
@@ -37,11 +48,8 @@ passport.use(
                 await user.save();
 
                 return done(null, user);
-
             } catch (err) {
-
                 return done(err, null);
-
             }
         }
     )

@@ -4,8 +4,9 @@ import { authAPI } from "../lib/api";
 import { toast } from "../lib/toast";
 
 const ERRORS = {
+  domain: "Use your IIT Madras SMAIL account (@smail.iitm.ac.in).",
   unauthorized:
-    "This Google account isn’t registered in SAATHI.",
+    "Your roll number isn’t registered in SAATHI. Ask your coordinator to add you.",
   auth: "Sign-in didn’t finish. Please try again.",
   session: "Signed in, but we couldn’t load your profile. Check API URL / CORS.",
 };
@@ -44,7 +45,8 @@ export default function Login() {
             A friend for the journey
           </h1>
           <p className="landing__support">
-            You’re not meant to figure it all out alone.
+            Sign in with your IIT Madras SMAIL. You’re not meant to figure it
+            all out alone.
           </p>
 
           {error ? <p className="landing__error">{error}</p> : null}

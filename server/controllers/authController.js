@@ -10,9 +10,24 @@ exports.googleLogin = passport.authenticate("google", {
 
 exports.googleCallback = [
   (req, res, next) => {
-    passport.authenticate("google", {
-      session: false,
-      failureRedirect: `${clientUrl()}/?error=unauthorized`,
+    passport.authenticate("google", { session: false }, (err, user, info) => {
+      if (err) {
+        return res.redirect(`${clientUrl()}/?error=auth`);
+      }
+
+      if (!user) {
+        const message = String(info?.message || "");
+        if (
+          message.includes("SMAIL") ||
+          message.includes("IIT Madras")
+        ) {
+          return res.redirect(`${clientUrl()}/?error=domain`);
+        }
+        return res.redirect(`${clientUrl()}/?error=unauthorized`);
+      }
+
+      req.user = user;
+      return next();
     })(req, res, next);
   },
 

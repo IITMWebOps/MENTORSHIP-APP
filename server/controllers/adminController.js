@@ -41,31 +41,41 @@ exports.uploadUsers = async (req, res) => {
     }
 
     // ===============================
-    // Step 1 : Collect all emails
+    // Step 1 : Collect emails + roll nos
+    // Login matches SMAIL local-part → rollNo
     // ===============================
 
     const csvEmails = rows
       .map((row) => row.EmailId?.trim().toLowerCase())
       .filter(Boolean);
 
+    const csvRollNos = rows
+      .map((row) => row["Roll No"]?.trim().toUpperCase())
+      .filter(Boolean);
+
     // ===============================
     // Step 2 : Fetch existing users
-    // ONE DATABASE QUERY
     // ===============================
 
     const existingUsers = await User.find(
       {
-        email: { $in: csvEmails },
+        $or: [
+          { email: { $in: csvEmails } },
+          { rollNo: { $in: csvRollNos } },
+        ],
       },
-      "email"
+      "email rollNo"
     );
 
     // ===============================
-    // Step 3 : Store existing emails
+    // Step 3 : Store existing keys
     // ===============================
 
     const existingEmails = new Set(
       existingUsers.map((user) => user.email)
+    );
+    const existingRollNos = new Set(
+      existingUsers.map((user) => user.rollNo)
     );
 
     // ===============================
@@ -84,14 +94,35 @@ exports.uploadUsers = async (req, res) => {
       "mentee",
     ];
 
+    const SMAIL_SUFFIX = "@smail.iitm.ac.in";
+
     for (const row of rows) {
 
       const email = row.EmailId?.trim().toLowerCase();
-
+      const rollNo = row["Roll No"]?.trim().toUpperCase();
       const role = row.Role?.trim().toLowerCase();
+      const name = row.Name?.trim();
 
-      // Duplicate email
-      if (existingEmails.has(email)) {
+      if (!email || !rollNo || !name) {
+        skipped++;
+        continue;
+      }
+
+      // Must be IITM SMAIL — same rule as passport login
+      if (!email.endsWith(SMAIL_SUFFIX)) {
+        skipped++;
+        continue;
+      }
+
+      // Email local-part must equal roll number (me21b001@smail… ↔ ME21B001)
+      const emailRollNo = email.split("@")[0].toUpperCase();
+      if (emailRollNo !== rollNo) {
+        skipped++;
+        continue;
+      }
+
+      // Duplicate email or roll number
+      if (existingEmails.has(email) || existingRollNos.has(rollNo)) {
         skipped++;
         continue;
       }
@@ -104,9 +135,9 @@ exports.uploadUsers = async (req, res) => {
 
       usersToInsert.push({
 
-        rollNo: row["Roll No"]?.trim().toUpperCase(),
+        rollNo,
 
-        name: row.Name?.trim(),
+        name,
 
         email,
 
@@ -147,6 +178,7 @@ exports.uploadUsers = async (req, res) => {
 
       // Prevent duplicates within the same CSV
       existingEmails.add(email);
+      existingRollNos.add(rollNo);
     }
 
     // ===============================

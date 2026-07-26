@@ -103,6 +103,7 @@ export default function AdminDashboard() {
             <h2 className="admin-panel__title">Upload users</h2>
             <p className="admin-panel__desc">
               Import a CSV with Roll No, Name, EmailId, Role, Mobile, Gender, Program, and Department.
+              EmailId must be rollNo@smail.iitm.ac.in (login matches the roll number from SMAIL).
             </p>
           </div>
           <div className="admin-panel__badge">
