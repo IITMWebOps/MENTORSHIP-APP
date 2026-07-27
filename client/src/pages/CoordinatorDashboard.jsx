@@ -93,6 +93,11 @@ export default function CoordinatorDashboard() {
     if (!dashboard) return [];
     let list = [...(dashboard.mentorList || [])];
 
+    // When a mentor is selected, show only that mentor in the list
+    if (selectedMentorId) {
+      return list.filter((m) => String(m._id) === String(selectedMentorId));
+    }
+
     if (department !== "all") {
       list = list.filter((m) => m.department === department);
     }
@@ -121,7 +126,7 @@ export default function CoordinatorDashboard() {
     });
 
     return list;
-  }, [dashboard, search, department, sortBy]);
+  }, [dashboard, search, department, sortBy, selectedMentorId]);
 
   const selectedMentor = useMemo(() => {
     if (!dashboard || !selectedMentorId) return null;
@@ -317,7 +322,7 @@ export default function CoordinatorDashboard() {
 
             {/* Mentor List */}
 
-      <div className="dash-box mb-8">
+      <div className="dash-box dash-box--no-hover mb-8">
 
         <h2 className="text-xl sm:text-2xl font-semibold mb-2">
           Mentor List
@@ -371,10 +376,8 @@ export default function CoordinatorDashboard() {
                   <tr
                     key={mentor._id}
                     onClick={() => selectMentor(mentor)}
-                    className={`border-t cursor-pointer transition-colors ${
-                      isSelected
-                        ? "bg-sky-50 ring-1 ring-inset ring-sky-200"
-                        : "hover:bg-gray-50"
+                    className={`border-t cursor-pointer ${
+                      isSelected ? "bg-sky-50" : ""
                     }`}
                   >
 

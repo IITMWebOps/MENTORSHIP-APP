@@ -729,6 +729,14 @@ button:active:not(:disabled) {
   z-index: 30;
 }
 
+/* Large tables (mentor list) must not scale — they cover filters above */
+.dash-box.dash-box--no-hover,
+.dash-box.dash-box--no-hover:hover {
+  transform: none;
+  z-index: auto;
+  box-shadow: 0 12px 32px rgba(14, 116, 144, 0.1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dash-box:hover,
   .admin-panel:hover,

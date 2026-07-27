@@ -94,8 +94,6 @@ exports.uploadUsers = async (req, res) => {
       "mentee",
     ];
 
-    const SMAIL_SUFFIX = "@smail.iitm.ac.in";
-
     for (const row of rows) {
 
       const email = row.EmailId?.trim().toLowerCase();
@@ -103,20 +101,8 @@ exports.uploadUsers = async (req, res) => {
       const role = row.Role?.trim().toLowerCase();
       const name = row.Name?.trim();
 
+      // Contact email can be personal; login uses SMAIL → rollNo match in passport
       if (!email || !rollNo || !name) {
-        skipped++;
-        continue;
-      }
-
-      // Must be IITM SMAIL — same rule as passport login
-      if (!email.endsWith(SMAIL_SUFFIX)) {
-        skipped++;
-        continue;
-      }
-
-      // Email local-part must equal roll number (me21b001@smail… ↔ ME21B001)
-      const emailRollNo = email.split("@")[0].toUpperCase();
-      if (emailRollNo !== rollNo) {
         skipped++;
         continue;
       }

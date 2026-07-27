@@ -38,8 +38,7 @@ passport.use(
 
                 user.googleId = profile.id;
                 user.lastLogin = new Date();
-                // Keep stored email in sync with the SMAIL used to sign in
-                user.email = email;
+                // Do not overwrite contact email in DB — auth is by rollNo from SMAIL only
 
                 if (profile.photos && profile.photos.length > 0) {
                     user.profilePhoto = profile.photos[0].value;
