@@ -45,8 +45,8 @@ export default function Login() {
             A friend for the journey
           </h1>
           <p className="landing__support">
-            Sign in with your IIT Madras SMAIL. You’re not meant to figure it
-            all out alone.
+            You’re not meant to figure it all out alone.
+            
           </p>
 
           {error ? <p className="landing__error">{error}</p> : null}

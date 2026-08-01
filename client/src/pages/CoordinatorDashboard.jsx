@@ -5,6 +5,7 @@ import StatsCard from "../../components/StatsCard";
 import Loader from "../../components/Loader";
 import { coordinatorAPI } from "../lib/api";
 import { toast } from "../lib/toast";
+import { normalizeDepartment } from "../lib/departments";
 
 function matchesSearch(text, query) {
   if (!query.trim()) return true;
@@ -16,6 +17,10 @@ function matchesSearch(text, query) {
 function mentorIdOf(item) {
   const id = item?.mentor?._id || item?.mentor;
   return id ? String(id) : "";
+}
+
+function deptOf(item) {
+  return normalizeDepartment(item?.department || item?.mentor?.department || "");
 }
 
 export default function CoordinatorDashboard() {
@@ -80,10 +85,11 @@ export default function CoordinatorDashboard() {
     if (!dashboard) return [];
     const set = new Set();
     (dashboard.mentorList || []).forEach((m) => {
-      if (m.department) set.add(m.department);
+      const d = normalizeDepartment(m.department);
+      if (d) set.add(d);
     });
     (dashboard.pendingVerificationList || []).forEach((item) => {
-      const d = item.department || item.mentor?.department;
+      const d = deptOf(item);
       if (d) set.add(d);
     });
     return [...set].sort((a, b) => a.localeCompare(b));
@@ -99,7 +105,9 @@ export default function CoordinatorDashboard() {
     }
 
     if (department !== "all") {
-      list = list.filter((m) => m.department === department);
+      list = list.filter(
+        (m) => normalizeDepartment(m.department) === department
+      );
     }
 
     list = list.filter(
@@ -107,16 +115,18 @@ export default function CoordinatorDashboard() {
         matchesSearch(m.name, search) ||
         matchesSearch(m.rollNo, search) ||
         matchesSearch(m.email, search) ||
-        matchesSearch(m.department, search)
+        matchesSearch(normalizeDepartment(m.department), search)
     );
 
     list.sort((a, b) => {
+      const deptA = normalizeDepartment(a.department);
+      const deptB = normalizeDepartment(b.department);
       if (sortBy === "dept-asc") {
-        return (a.department || "").localeCompare(b.department || "") ||
+        return deptA.localeCompare(deptB) ||
           (a.name || "").localeCompare(b.name || "");
       }
       if (sortBy === "dept-desc") {
-        return (b.department || "").localeCompare(a.department || "") ||
+        return deptB.localeCompare(deptA) ||
           (a.name || "").localeCompare(b.name || "");
       }
       if (sortBy === "name-asc") {
@@ -147,9 +157,7 @@ export default function CoordinatorDashboard() {
       );
     } else {
       if (department !== "all") {
-        list = list.filter(
-          (item) => (item.department || item.mentor?.department) === department
-        );
+        list = list.filter((item) => deptOf(item) === department);
       }
 
       list = list.filter((item) => {
@@ -157,7 +165,7 @@ export default function CoordinatorDashboard() {
         return (
           matchesSearch(item.mentor?.name, search) ||
           matchesSearch(item.mentor?.rollNo, search) ||
-          matchesSearch(item.department || item.mentor?.department, search) ||
+          matchesSearch(deptOf(item), search) ||
           matchesSearch(menteeNames, search) ||
           matchesSearch(item.meetingSummary, search)
         );
@@ -165,8 +173,8 @@ export default function CoordinatorDashboard() {
     }
 
     list.sort((a, b) => {
-      const deptA = a.department || a.mentor?.department || "";
-      const deptB = b.department || b.mentor?.department || "";
+      const deptA = deptOf(a);
+      const deptB = deptOf(b);
       if (sortBy === "dept-asc") {
         return deptA.localeCompare(deptB) ||
           new Date(b.interactionDate) - new Date(a.interactionDate);
@@ -194,14 +202,16 @@ export default function CoordinatorDashboard() {
       );
     }
     if (department !== "all") {
-      list = list.filter((f) => f.mentor?.department === department);
+      list = list.filter(
+        (f) => normalizeDepartment(f.mentor?.department) === department
+      );
     }
     if (search.trim()) {
       list = list.filter(
         (f) =>
           matchesSearch(f.mentor?.name, search) ||
           matchesSearch(f.mentee?.name, search) ||
-          matchesSearch(f.mentor?.department, search) ||
+          matchesSearch(normalizeDepartment(f.mentor?.department), search) ||
           matchesSearch(f.feedback, search)
       );
     }
@@ -304,8 +314,8 @@ export default function CoordinatorDashboard() {
               {selectedMentor.name}
               <span className="text-gray-500 font-normal text-sm ml-2">
                 {selectedMentor.rollNo}
-                {selectedMentor.department
-                  ? ` · ${selectedMentor.department}`
+                {normalizeDepartment(selectedMentor.department)
+                  ? ` · ${normalizeDepartment(selectedMentor.department)}`
                   : ""}
               </span>
             </p>
@@ -395,7 +405,7 @@ export default function CoordinatorDashboard() {
                     </td>
 
                     <td className="p-3">
-                      {mentor.department}
+                      {normalizeDepartment(mentor.department) || "-"}
                     </td>
 
                     <td className="p-3">
@@ -492,7 +502,7 @@ export default function CoordinatorDashboard() {
                     </td>
 
                     <td className="p-3">
-                      {item.department || item.mentor?.department || "-"}
+                      {deptOf(item) || "-"}
                     </td>
 
                     <td className="p-3">
@@ -591,8 +601,8 @@ export default function CoordinatorDashboard() {
                     </h3>
                     <p className="text-gray-500 text-sm">
                       About mentor: {feedback.mentor?.name || "-"}
-                      {feedback.mentor?.department
-                        ? ` · ${feedback.mentor.department}`
+                      {normalizeDepartment(feedback.mentor?.department)
+                        ? ` · ${normalizeDepartment(feedback.mentor.department)}`
                         : ""}
                     </p>
                   </div>
